@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deadline Bot</title>
+<meta name="description" content="Class deadlines, shared. Type a deadline, upload a syllabus, see what's coming up.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23E8613C'/%3E%3Cpath d='M9 11h14M9 16h14M9 21h9' stroke='white' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #F6F4EF; --surface: #FFFFFF; --ink: #1D1B18; --muted: #6B665E; --line: #E4E0D8;
+    --accent: #E8613C; --accent-ink: #FFFFFF; --soon: #B3261E; --soon-bg: #FCEBE8;
+    --week: #8A5A00; --week-bg: #FFF4DC; --ok-bg: #E9F4EC; --ok: #1E6B3A; --warn-bg: #FFF4DC;
+    --radius: 14px; --shadow: 0 1px 2px rgba(0,0,0,.04), 0 4px 16px rgba(0,0,0,.04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #151413; --surface: #1F1E1C; --ink: #F1EEE8; --muted: #A39E95; --line: #33312D;
+      --accent: #F07A55; --soon: #FF8A7A; --soon-bg: #3A1E1A; --week: #F0C060; --week-bg: #33290F;
+      --ok-bg: #16301F; --ok: #8FD6A6; --warn-bg: #33290F; --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 28px 16px 64px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 22px; }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .logo { width: 40px; height: 40px; border-radius: 10px; background: var(--accent); display: grid; place-items: center; flex: none; }
+  h1 { font-size: 22px; margin: 0; letter-spacing: -.01em; }
+  .sub { color: var(--muted); font-size: 14px; margin: 0; }
+  .name { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--muted); }
+  .name input { width: 130px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); font: inherit; }
+
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+  .composer { padding: 16px; margin-bottom: 14px; }
+  textarea { width: 100%; min-height: 72px; resize: vertical; border: 0; outline: 0; background: transparent; color: var(--ink); font: inherit; }
+  textarea::placeholder { color: var(--muted); }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 12px; margin-top: 6px; }
+  .file { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); cursor: pointer; padding: 6px 10px; border-radius: 999px; border: 1px dashed var(--line); max-width: 100%; }
+  .file:hover { color: var(--ink); border-color: var(--muted); }
+  .file input { display: none; }
+  .file span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
+  .btn { appearance: none; border: 0; border-radius: 999px; padding: 9px 18px; font: 600 15px/1 inherit; font-family: inherit; cursor: pointer; background: var(--accent); color: var(--accent-ink); }
+  .btn:disabled { opacity: .55; cursor: progress; }
+  .btn.ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); padding: 7px 14px; font-weight: 500; }
+  .hint { font-size: 13px; color: var(--muted); margin: 8px 2px 0; }
+
+  .reply { white-space: pre-line; padding: 12px 14px; border-radius: 12px; margin-bottom: 18px; font-size: 15px; display: none; }
+  .reply.show { display: block; }
+  .reply.ok { background: var(--ok-bg); color: var(--ok); }
+  .reply.err { background: var(--soon-bg); color: var(--soon); }
+  .reply.wait { background: var(--warn-bg); color: var(--week); }
+
+  .listhead { display: flex; align-items: baseline; justify-content: space-between; margin: 26px 2px 10px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0; }
+  .group-title { font-size: 13px; font-weight: 600; color: var(--muted); margin: 18px 2px 8px; }
+  ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  li.item { display: grid; grid-template-columns: 64px 1fr auto; gap: 14px; align-items: center; padding: 12px 14px; }
+  .date { text-align: center; border-right: 1px solid var(--line); padding-right: 12px; }
+  .date .d { font-size: 22px; font-weight: 700; line-height: 1; }
+  .date .m { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .title { font-weight: 600; overflow-wrap: anywhere; }
+  .meta { font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin-top: 2px; }
+  .pill { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+  .pill.soon { background: var(--soon-bg); color: var(--soon); }
+  .pill.week { background: var(--week-bg); color: var(--week); }
+  .pill.later { background: var(--bg); color: var(--muted); border: 1px solid var(--line); }
+  .pill.conflict { background: var(--warn-bg); color: var(--week); }
+  .del { background: transparent; border: 1px solid transparent; color: var(--muted); border-radius: 999px; padding: 6px 10px; cursor: pointer; font: inherit; font-size: 13px; white-space: nowrap; }
+  .del:hover { border-color: var(--line); color: var(--ink); }
+  .del.confirm { background: var(--soon-bg); color: var(--soon); border-color: transparent; font-weight: 600; }
+  .empty, .loading { text-align: center; color: var(--muted); padding: 34px 16px; }
+  footer { margin-top: 36px; font-size: 13px; color: var(--muted); text-align: center; }
+  @media (max-width: 520px) {
+    header { flex-direction: column; align-items: flex-start; }
+    li.item { grid-template-columns: 52px 1fr; }
+    li.item .del { grid-column: 2; justify-self: start; padding-left: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="logo" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 5h14M3 10h14M3 15h9" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </div>
+      <div>
+        <h1>Deadline Bot</h1>
+        <p class="sub">Every class deadline, in one shared list.</p>
+      </div>
+    </div>
+    <label class="name">Your name <input id="name" maxlength="40" placeholder="e.g. Charlotte"></label>
+  </header>
+
+  <form class="card composer" id="form">
+    <textarea id="text" placeholder="Type a deadline, e.g. &quot;Data Viz report due 24/10 at 23:59&quot; — or attach a syllabus, slide or screenshot."></textarea>
+    <div class="row">
+      <label class="file" title="Attach an image or PDF">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M10.5 4.5 5.8 9.2a1.5 1.5 0 0 0 2.1 2.1l5-5a3 3 0 0 0-4.2-4.2l-5 5a4.5 4.5 0 0 0 6.4 6.4l4.2-4.2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+        <span id="fileLabel">Attach photo or PDF</span>
+        <input type="file" id="file" accept="image/*,application/pdf">
+      </label>
+      <button class="btn" id="submit" type="submit">Add deadline</button>
+    </div>
+  </form>
+  <p class="hint">The AI reads your text or file, skips duplicates and deadlines that are already over, and saves the rest.</p>
+
+  <div class="reply" id="reply" role="status" aria-live="polite"></div>
+
+  <div class="listhead">
+    <h2 id="count">Upcoming</h2>
+    <button class="btn ghost" id="refresh" type="button">Refresh</button>
+  </div>
+  <div id="list"><div class="loading">Loading deadlines…</div></div>
+
+  <footer>Built with n8n · Claude · Supabase</footer>
+</div>
+
+<script>
+  // ── Settings ─────────────────────────────────────────────
+  const API = 'https://charlotte-le-bihan.app.n8n.cloud/webhook/deadline-bot-api';
+  const TZ = 'Europe/Paris';
+  const MAX_MB = 10;
+
+  const $ = (id) => document.getElementById(id);
+  const store = {
+    get(k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+  };
+
+  // ── Talking to n8n ───────────────────────────────────────
+  async function call(payload) {
+    const res = await fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    let data = {};
+    try { data = await res.json(); } catch (e) {}
+    if (!res.ok && !data.reply) throw new Error('The server answered ' + res.status);
+    return data;
+  }
+
+  function showReply(text, kind) {
+    const el = $('reply');
+    el.textContent = text;
+    el.className = 'reply show ' + kind;
+  }
+
+  // ── Dates ────────────────────────────────────────────────
+  const dayKey = (d) => d.toLocaleDateString('en-CA', { timeZone: TZ }); // YYYY-MM-DD
+  function daysUntil(iso) {
+    const a = new Date(dayKey(new Date()) + 'T00:00:00Z');
+    const b = new Date(dayKey(new Date(iso)) + 'T00:00:00Z');
+    return Math.round((b - a) / 86400000);
+  }
+  function whenLabel(n) {
+    if (n <= 0) return 'Today';
+    if (n === 1) return 'Tomorrow';
+    return 'In ' + n + ' days';
+  }
+
+  // ── List ─────────────────────────────────────────────────
+  let deadlines = [];
+
+  async function load() {
+    try {
+      const data = await call({ action: 'list' });
+      deadlines = data.deadlines || [];
+      render();
+    } catch (e) {
+      $('list').innerHTML = '';
+      const div = document.createElement('div');
+      div.className = 'empty';
+      div.textContent = 'Could not load deadlines (' + e.message + '). Try Refresh.';
+      $('list').appendChild(div);
+    }
+  }
+
+  function render() {
+    const list = $('list');
+    list.innerHTML = '';
+    $('count').textContent = deadlines.length ? 'Upcoming · ' + deadlines.length : 'Upcoming';
+    if (!deadlines.length) {
+      const div = document.createElement('div');
+      div.className = 'empty card';
+      div.textContent = '🎉 Nothing due. Add a deadline above.';
+      list.appendChild(div);
+      return;
+    }
+    const groups = [
+      { title: 'Next 48 hours', test: (n) => n <= 2 },
+      { title: 'This week', test: (n) => n > 2 && n <= 7 },
+      { title: 'Later', test: (n) => n > 7 },
+    ];
+    for (const g of groups) {
+      const items = deadlines.filter((d) => g.test(daysUntil(d.due_at)));
+      if (!items.length) continue;
+      const h = document.createElement('div');
+      h.className = 'group-title';
+      h.textContent = g.title;
+      list.appendChild(h);
+      const ul = document.createElement('ul');
+      items.forEach((d) => ul.appendChild(row(d)));
+      list.appendChild(ul);
+    }
+  }
+
+  function row(d) {
+    const dt = new Date(d.due_at);
+    const n = daysUntil(d.due_at);
+    const li = document.createElement('li');
+    li.className = 'item card';
+
+    const date = document.createElement('div');
+    date.className = 'date';
+    date.innerHTML = '<div class="d"></div><div class="m"></div>';
+    date.querySelector('.d').textContent = dt.toLocaleDateString('en-GB', { day: 'numeric', timeZone: TZ });
+    date.querySelector('.m').textContent = dt.toLocaleDateString('en-GB', { month: 'short', timeZone: TZ });
+
+    const body = document.createElement('div');
+    const title = document.createElement('div');
+    title.className = 'title';
+    title.textContent = d.title;
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    const course = document.createElement('span');
+    course.textContent = d.course;
+    const time = document.createElement('span');
+    time.textContent = dt.toLocaleDateString('en-GB', { weekday: 'short', timeZone: TZ }) + ' ' +
+      dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: TZ });
+    const pill = document.createElement('span');
+    pill.className = 'pill ' + (n <= 2 ? 'soon' : n <= 7 ? 'week' : 'later');
+    pill.textContent = whenLabel(n);
+    meta.append(pill, course, time);
+    if (d.conflict) {
+      const c = document.createElement('span');
+      c.className = 'pill conflict';
+      c.textContent = '⚠ Two dates reported';
+      c.title = 'Classmates sent different dates for this – check with the teacher';
+      meta.appendChild(c);
+    }
+    body.append(title, meta);
+
+    const del = document.createElement('button');
+    del.className = 'del';
+    del.type = 'button';
+    del.textContent = 'Delete';
+    let armed = false, timer;
+    del.addEventListener('click', async () => {
+      if (!armed) {
+        armed = true;
+        del.textContent = 'Confirm delete';
+        del.classList.add('confirm');
+        timer = setTimeout(() => { armed = false; del.textContent = 'Delete'; del.classList.remove('confirm'); }, 4000);
+        return;
+      }
+      clearTimeout(timer);
+      del.disabled = true;
+      del.textContent = 'Deleting…';
+      try {
+        await call({ action: 'delete', id: d.id });
+        deadlines = deadlines.filter((x) => x.id !== d.id);
+        render();
+        showReply('🗑️ Deleted: ' + d.course + ' – ' + d.title, 'ok');
+      } catch (e) {
+        del.disabled = false;
+        del.textContent = 'Delete';
+        showReply('⚠️ Could not delete it. Please try again.', 'err');
+      }
+    });
+
+    li.append(date, body, del);
+    return li;
+  }
+
+  // ── Adding deadlines ─────────────────────────────────────
+  const fileInput = $('file');
+  fileInput.addEventListener('change', () => {
+    const f = fileInput.files[0];
+    $('fileLabel').textContent = f ? f.name : 'Attach photo or PDF';
+  });
+
+  function toBase64(file) {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(String(r.result).split(',')[1]);
+      r.onerror = reject;
+      r.readAsDataURL(file);
+    });
+  }
+
+  $('form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const text = $('text').value.trim();
+    const file = fileInput.files[0];
+    const name = $('name').value.trim();
+    if (!text && !file) { showReply('Type a deadline or attach a file first.', 'err'); return; }
+    if (file && file.size > MAX_MB * 1024 * 1024) { showReply('That file is too big (max ' + MAX_MB + ' MB).', 'err'); return; }
+
+    const btn = $('submit');
+    btn.disabled = true;
+    btn.textContent = file ? 'Reading file…' : 'Saving…';
+    showReply(file ? '📄 Reading your file – this can take up to 30 seconds…' : '⏳ Reading your deadline…', 'wait');
+    try {
+      const payload = file
+        ? { action: 'add_file', name, text, filename: file.name, mime: file.type || 'application/octet-stream', data: await toBase64(file) }
+        : { action: 'add', name, text };
+      const data = await call(payload);
+      showReply(String(data.reply || 'Done.').replace(/\n*Send \/deadlines to see the full list\.?/, ''), data.ok === false ? 'err' : 'ok');
+      if (data.ok !== false) {
+        $('text').value = '';
+        fileInput.value = '';
+        $('fileLabel').textContent = 'Attach photo or PDF';
+      }
+      load();
+    } catch (err) {
+      showReply('⚠️ Could not reach the bot (' + err.message + '). Please try again.', 'err');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Add deadline';
+    }
+  });
+
+  // ── Start ────────────────────────────────────────────────
+  $('name').value = store.get('deadline-bot-name');
+  $('name').addEventListener('change', () => store.set('deadline-bot-name', $('name').value.trim()));
+  $('refresh').addEventListener('click', load);
+  load();
+</script>
+</body>
+</html>
