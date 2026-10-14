@@ -335,7 +335,7 @@
     e.preventDefault();
     const text = $('text').value.trim();
     const file = fileInput.files[0];
-    const name = $('name').value.trim();
+    const name = $('name') ? $('name').value.trim() : '';
     if (!text && !file) { say('Write a deadline or clip a file first ✏️', true); return; }
     if (file && file.size > MAX_MB * 1024 * 1024) { say('That file is a bit big. Keep it under ' + MAX_MB + ' MB.', true); return; }
 
@@ -363,8 +363,10 @@
     }
   });
 
-  $('name').value = store.get('deadline-helper-name');
-  $('name').addEventListener('change', () => store.set('deadline-helper-name', $('name').value.trim()));
+  if ($('name')) {
+    $('name').value = store.get('deadline-helper-name');
+    $('name').addEventListener('change', () => store.set('deadline-helper-name', $('name').value.trim()));
+  }
   $('refresh').addEventListener('click', load);
   load();
 </script>
