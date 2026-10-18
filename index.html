@@ -140,12 +140,87 @@
     .note.gone { animation: none; opacity: 0; }
     .pin:hover { transform: rotate(1deg); }
   }
+
+  /* Reminders note */
+  .remind { margin-top: 34px; max-width: 560px; }
+  .remind-toggle {
+    font: 700 20px var(--hand); color: var(--ink); background: var(--mint); border: 0; cursor: pointer;
+    padding: 10px 18px; border-radius: 2px 2px 12px 2px; transform: rotate(.6deg);
+    box-shadow: 2px 6px 0 rgba(43,58,103,.08);
+  }
+  .remind-panel {
+    background: var(--mint); padding: 18px 20px 20px; margin-top: 14px; transform: rotate(-.4deg);
+    border-radius: 2px 2px 14px 2px; box-shadow: 2px 6px 0 rgba(43,58,103,.08); line-height: 1.4;
+  }
+  .remind-panel[hidden] { display: none; }
+  .remind-panel h3 { font: 700 18px var(--hand); margin: 0 0 8px; }
+  .remind-panel h3 + .hint { margin-top: -4px; }
+  .hint { font-size: 14px; color: var(--pencil); margin: 0 0 10px; }
+  .hours { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-bottom: 18px; }
+  .chip input, .plan input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .chip span {
+    display: block; text-align: center; padding: 6px 0; border-radius: 8px; cursor: pointer;
+    font: 600 14px var(--body); background: rgba(255,255,255,.55); color: var(--ink);
+  }
+  .chip input:checked + span, .plan input:checked + span { background: var(--ink); color: var(--paper); }
+  .chip input:focus-visible + span, .plan input:focus-visible + span { outline: 3px solid var(--ink); outline-offset: 2px; }
+  .plans { display: grid; gap: 6px; margin-bottom: 18px; }
+  .plan span {
+    display: block; padding: 8px 12px; border-radius: 10px; cursor: pointer;
+    font: 600 16px var(--hand); background: rgba(255,255,255,.55); color: var(--ink);
+  }
+  .tg-btn { display: inline-block; text-decoration: none; }
+  @media (prefers-color-scheme: dark) {
+    .chip span, .plan span { background: rgba(255,255,255,.08); }
+  }
+  @media (max-width: 560px) { .hours { grid-template-columns: repeat(4, 1fr); } }
+
+  /* How it works: an index card */
+  .howto {
+    position: relative; max-width: 620px; margin: 0 0 34px; padding: 18px 22px 16px;
+    background: var(--paper); border: 1.5px solid var(--rule); border-top: 4px solid var(--margin);
+    box-shadow: 2px 6px 0 rgba(43,58,103,.06); transform: rotate(.4deg); line-height: 1.45;
+  }
+  .howto h2 { font: 700 22px/1.2 var(--hand); margin: 0 0 10px; }
+  .howto ol { margin: 0; padding: 0; list-style: none; counter-reset: step; display: grid; gap: 10px; }
+  .howto li { counter-increment: step; display: grid; grid-template-columns: 30px 1fr; gap: 8px; align-items: start; }
+  .howto li::before {
+    content: counter(step); font: 700 17px/28px var(--hand); text-align: center; width: 28px; height: 28px;
+    border: 2px solid var(--ink); border-radius: 50%;
+  }
+  .howto b { font-weight: 600; }
+  .howto code { font: 600 14px var(--body); background: var(--yellow); padding: 0 5px; border-radius: 4px; color: var(--ink); }
+  .howto .open-bot { margin-top: 14px; display: inline-block; text-decoration: none; font-size: 16px; }
+
+  .howto-wrap { margin: 0 0 30px; max-width: 620px; }
+  .howto-toggle { background: var(--paper); border: 1.5px solid var(--rule); border-top: 4px solid var(--margin); transform: rotate(-.6deg); }
+  .howto { margin: 14px 0 0; }
+  .howto[hidden] { display: none; }
+
+  /* "Want reminders?" uses the same index-card look as "How it works" */
+  .remind-toggle:not(.howto-toggle) { background: var(--paper); border: 1.5px solid var(--rule); border-top: 4px solid var(--margin); }
+  .remind-panel { background: var(--paper); border: 1.5px solid var(--rule); border-top: 4px solid var(--margin); box-shadow: 2px 6px 0 rgba(43,58,103,.06); border-radius: 0; }
+  .chip span, .plan span { background: #EEF3FA; }
+  @media (prefers-color-scheme: dark) { .chip span, .plan span { background: rgba(255,255,255,.07); } }
 </style>
 </head>
 <body>
 <main class="page">
   <h1>Deadline Helper</h1>
-  <p class="tagline">Our class planner. One place for every hand-in, so nobody gets caught out.</p>
+  <p class="tagline">Our shared class planner. This page shows every deadline we have, and Deadline Bot on Telegram handles the reminding.</p>
+
+
+  <section class="howto-wrap">
+    <button class="remind-toggle howto-toggle" id="howtoToggle" type="button" aria-expanded="false" aria-controls="howtoPanel">How it works</button>
+    <div class="howto" id="howtoPanel" hidden>
+    <ol>
+      <li><span><b>Add a deadline</b> on the yellow note below, or text it to <b>Deadline Bot</b> on Telegram. A sentence, a photo of the syllabus or a PDF all work.</span></li>
+      <li><span><b>It lands in one shared list.</b> Duplicates are skipped and finished deadlines disappear on their own, so the board stays tidy for everyone.</span></li>
+      <li><span><b>Get reminded on Telegram.</b> First open Deadline Bot and send <code>/start</code> to switch it on. Then pick a time and how often under “Want reminders?”, or send <code>/reminders</code> to the bot. In the bot, <code>/deadlines</code> shows the list and “delete the …” removes one.</span></li>
+    </ol>
+    <a class="pin open-bot" href="https://t.me/Charlotte_deadline_bot" target="_blank" rel="noopener">Open Deadline Bot on Telegram</a>
+    </div>
+  </section>
 
   <form class="compose" id="form">
     <label class="q" for="text">Got a deadline? Drop it here 👇</label>
@@ -160,6 +235,18 @@
   </form>
   <p class="reply" id="reply" role="status" aria-live="polite"></p>
 
+  <section class="remind" aria-labelledby="remindToggle">
+    <button class="remind-toggle" id="remindToggle" type="button" aria-expanded="false" aria-controls="remindPanel">Want reminders?</button>
+    <div class="remind-panel" id="remindPanel" hidden>
+      <h3>When should I nudge you?</h3>
+      <div class="hours" id="hours" role="radiogroup" aria-label="Reminder time"></div>
+      <h3>How often before each deadline?</h3>
+      <div class="plans" id="plans" role="radiogroup" aria-label="Reminder plan"></div>
+      <p class="hint">Reminders arrive on Telegram. Tap the button and Deadline Bot saves your choice.</p>
+      <a class="pin tg-btn" id="tgLink" href="#" target="_blank" rel="noopener">Send me reminders on Telegram</a>
+    </div>
+  </section>
+
   <div class="board-head">
     <h2 id="count">What's coming up</h2>
     <button class="refresh" id="refresh" type="button">refresh</button>
@@ -170,8 +257,6 @@
     <span><i style="background:var(--mint)"></i>later</span>
   </div>
   <div id="board"><p class="empty">Flipping through the notebook…</p></div>
-
-  <footer>Also on Telegram: @Charlotte_deadline_bot. Reminders land there 48 h before each deadline.</footer>
 </main>
 
 <script>
@@ -367,6 +452,50 @@
     $('name').value = store.get('deadline-helper-name');
     $('name').addEventListener('change', () => store.set('deadline-helper-name', $('name').value.trim()));
   }
+
+  // ── Reminders (settings chosen here, sent by the Telegram bot) ──
+  const BOT = 'Charlotte_deadline_bot';
+  const PLANS = [
+    ['chill', '😎 1 day before'],
+    ['normal', '🙂 2 days + 1 day before'],
+    ['planner', '🤗 1 week + 3 days + 1 day before'],
+    ['early', '😇 2 weeks + 1 week + 3 days before'],
+    ['intense', '🥵 3 weeks, 2 weeks, 1 week, 3, 2 and 1 day before'],
+    ['countdown', '🤯 3 weeks before, then every day of the last 2 weeks'],
+  ];
+  const pick = { hour: +(store.get('dh-hour') || 8), plan: store.get('dh-plan') || 'normal' };
+
+  function radio(group, value, label, checked, cls) {
+    const l = document.createElement('label');
+    l.className = cls;
+    const i = document.createElement('input');
+    i.type = 'radio'; i.name = group; i.value = value; i.checked = checked;
+    const sp = document.createElement('span');
+    sp.textContent = label;
+    l.append(i, sp);
+    return l;
+  }
+  for (let h = 0; h < 24; h++) $('hours').appendChild(radio('hour', h, String(h).padStart(2, '0') + ':00', h === pick.hour, 'chip'));
+  PLANS.forEach(([k, label]) => $('plans').appendChild(radio('plan', k, label, k === pick.plan, 'plan')));
+
+  function updateLink() {
+    $('tgLink').href = `https://t.me/${BOT}?start=r_${pick.hour}_${pick.plan}`;
+  }
+  $('hours').addEventListener('change', (e) => { pick.hour = +e.target.value; store.set('dh-hour', pick.hour); updateLink(); });
+  $('plans').addEventListener('change', (e) => { pick.plan = e.target.value; store.set('dh-plan', pick.plan); updateLink(); });
+  $('remindToggle').addEventListener('click', () => {
+    const open = $('remindPanel').hidden;
+    $('remindPanel').hidden = !open;
+    $('remindToggle').setAttribute('aria-expanded', String(open));
+  });
+  updateLink();
+
+
+  $('howtoToggle').addEventListener('click', () => {
+    const open = $('howtoPanel').hidden;
+    $('howtoPanel').hidden = !open;
+    $('howtoToggle').setAttribute('aria-expanded', String(open));
+  });
   $('refresh').addEventListener('click', load);
   load();
 </script>
