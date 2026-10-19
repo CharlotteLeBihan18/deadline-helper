@@ -124,20 +124,6 @@ The website does not save reminder settings itself, because it does not know who
 2. You open the link and tap Start. Telegram sends the bot the message `/start r_18_planner`.
 3. The Main workflow reads it and saves the settings for your chat.
 
-## Project requirements (Level 3)
-
-| Requirement | Where it is used |
-|---|---|
-| Message trigger | Telegram Trigger (Main) |
-| If and Set | If: button tap?, If: valid deadline?, Set: build reply, Set: no deadline found |
-| Code | Prepare message, Code: normalise dates, Code: build reminders |
-| Switch | Switch: message type (Main), Switch: action (Web API) |
-| API | Telegram Bot API, Supabase, Anthropic, and the Web API webhook |
-| Database | Supabase (`deadlines`, `subscribers`) |
-| AI node | Claude in Extract & Save |
-| Sub-workflow | Extract & Save, called by Main and Web API |
-| Error handling with retries | Retry On Fail, error outputs, Error Handler workflow |
-
 ## Files in this repository
 
 | File | What it is |
