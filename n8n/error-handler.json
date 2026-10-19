@@ -1,0 +1,77 @@
+{
+  "name": "Deadline Bot – Error Handler",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "871570c5-a4ee-44e7-ac90-1a2c437b7d7b",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "8829645782",
+        "text": "={{ '🚨 Deadline Bot error\\n\\nWorkflow: ' + $json.workflow.name + '\\nNode: ' + ($json.execution.lastNodeExecuted || 'unknown') + '\\nError: ' + (($json.execution.error && $json.execution.error.message) || ($json.trigger && $json.trigger.error && $json.trigger.error.message) || 'unknown') + '\\nMode: ' + ($json.execution.mode || '-') + '\\n\\nExecution: ' + ($json.execution.url || $json.execution.id || '-') }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "63e1a816-c441-4365-9c24-6537a8c3ba5a",
+      "name": "Telegram: alert me",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        272,
+        0
+      ],
+      "webhookId": "3f8b72a3-eac6-4939-9c54-26a4bd13b21f",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "telegramApi": {
+          "id": "nvAMUVjG7Grqgm4L",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "# Error Handler\nThe other four workflows are linked to this one (in each workflow: Settings, then Error workflow).\n\nIf one of them crashes, n8n runs this workflow automatically and sends me a Telegram message with:\n- the workflow that failed\n- the node that failed\n- the error message\n- a link to that run\n\nThis is the last safety net. Inside the workflows there are two more layers.\n\n**Retry On Fail** (nodes with the circular-arrows icon): the node tries again before giving up.\n- Supabase nodes that read, save or delete deadlines and settings, in all workflows (3 tries)\n- Claude nodes in Extract & Save (2 or 3 tries)\n- Telegram: download file in Main, and Telegram: alert me here (3 tries)\n\n**Error outputs** (a second \"Error\" exit on the node): instead of crashing, the person gets a friendly message.\n- Main: Run sub-workflow → Telegram: save failed\n- Web API: Run sub-workflow → Respond: save failed\n- Extract & Save: Claude: read PDF / read image → Set: couldn't read file",
+        "height": 760,
+        "width": 568,
+        "color": 3
+      },
+      "id": "367c8990-b55d-401f-8156-81bd7de6d7d0",
+      "name": "Note: overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        -608
+      ]
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Telegram: alert me",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "pinData": {}
+}

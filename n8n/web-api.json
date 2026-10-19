@@ -1,0 +1,585 @@
+{
+  "name": "Deadline Bot – Web API",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "deadline-bot-api",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "bcaa34d4-9f4e-4335-b9ea-8e21a89e0cb3",
+      "name": "Website request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        400
+      ],
+      "webhookId": "014ba18a-8de4-48d6-975d-e0acc1035215"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Read the website's request and decide what to do.\nlet b = $input.first().json.body || {};\nif (typeof b === 'string') { try { b = JSON.parse(b); } catch (e) { b = {}; } }\nconst action = String(b.action || '');\nconst name = (String(b.name || '').trim().slice(0, 60) || 'Web user') + ' (web)';\n\nif (action === 'list') return [{ json: { action } }];\n\nif (action === 'add') {\n  const text = String(b.text || '').trim().slice(0, 4000);\n  if (!text) return [{ json: { action: 'invalid', error: 'Please type a deadline first.' } }];\n  return [{ json: { action, text, added_by: name, source: 'web' } }];\n}\n\nif (action === 'delete') {\n  const id = parseInt(b.id, 10);\n  if (!Number.isInteger(id) || id <= 0) return [{ json: { action: 'invalid', error: 'Unknown deadline.' } }];\n  return [{ json: { action, id } }];\n}\n\nif (action === 'add_file') {\n  const mime = String(b.mime || '');\n  const isPdf = mime === 'application/pdf';\n  if (!(isPdf || mime.startsWith('image/')) || !b.data) {\n    return [{ json: { action: 'invalid', error: 'Please upload an image or a PDF.' } }];\n  }\n  const buf = Buffer.from(String(b.data), 'base64');\n  if (buf.length > 10 * 1024 * 1024) return [{ json: { action: 'invalid', error: 'That file is too big (max 10 MB).' } }];\n  const bin = await this.helpers.prepareBinaryData(buf, String(b.filename || (isPdf ? 'upload.pdf' : 'upload.jpg')), mime);\n  return [{\n    json: { action, added_by: name, file_kind: isPdf ? 'pdf' : 'photo', caption: String(b.text || '').trim().slice(0, 500) },\n    binary: { data: bin },\n  }];\n}\n\nreturn [{ json: { action: 'invalid', error: 'Unknown request.' } }];"
+      },
+      "id": "97ace7a1-7785-47f2-8223-4cf9439fa98f",
+      "name": "Code: read request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "list"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "list"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "add"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "add text"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "add_file"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "add file"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "delete"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "delete"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "invalid"
+        }
+      },
+      "id": "bffce7ba-8763-40ac-97cb-e1dad229fb12",
+      "name": "Switch: action",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        448,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "deadlines",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "due_at",
+              "condition": "gte",
+              "keyValue": "={{ $now.toISO() }}"
+            }
+          ]
+        }
+      },
+      "id": "983c2d07-9daa-43ec-ae7a-6a880659592b",
+      "name": "Supabase: upcoming deadlines",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        720,
+        -32
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "tZzQ41GOHDCrpASZ",
+          "name": "Supabase account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Shape upcoming deadlines for the website, soonest first.\nconst rows = $input.all().map(i => i.json).filter(r => r && r.id);\nrows.sort((a, b) => new Date(a.due_at) - new Date(b.due_at));\nreturn [{ json: { deadlines: rows.map(r => ({\n  id: r.id, course: r.course, title: r.title, due_at: r.due_at,\n  conflict: !!r.conflict, added_by: r.added_by, source: r.source,\n})) } }];"
+      },
+      "id": "712f1546-1d05-42e3-987c-fd5e175eeaac",
+      "name": "Code: format for website",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        944,
+        -32
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "84c873a7-cf85-4394-97c1-a8dfca59c833",
+      "name": "Respond: list",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1136,
+        -32
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "z2Q4neaew6VRR9UC",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "2d3543cb-0ead-4032-b395-16c7457b7192",
+      "name": "Run sub-workflow: Extract & Save",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        736,
+        352
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "tableId": "deadlines",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.id }}"
+            }
+          ]
+        }
+      },
+      "id": "22c2c76c-fb67-480b-b099-8193d8eb12b9",
+      "name": "Supabase: delete deadline",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        720,
+        720
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "tZzQ41GOHDCrpASZ",
+          "name": "Supabase account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"ok\": true, \"reply\": \"🗑️ Deleted.\"}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "4dec261f-c432-43ef-ad5d-938e2ad14397",
+      "name": "Respond: deleted",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        944,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: false, reply: $json.error || \"Unknown request.\" }) }}",
+        "options": {
+          "responseCode": 400,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "a7aca153-a20f-4bcd-b14f-1bb2fffc9864",
+      "name": "Respond: invalid request",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        1040
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: !$json.read_failed, reply: $json.reply || \"Done.\" }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "2e49a368-c5a0-417d-bbb3-a3a4f4211ae4",
+      "name": "Respond: saved",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        960,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"ok\": false, \"reply\": \"⚠️ Something went wrong while saving – nothing was saved. Please try again in a minute.\"}",
+        "options": {
+          "responseCode": 500,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "2c4adbf0-9cd2-47fa-a265-dc7a97a3ea99",
+      "name": "Respond: save failed",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        960,
+        464
+      ]
+    },
+    {
+      "parameters": {
+        "content": "# Web API (backend for the website)\nThe website (index.html on Vercel) cannot talk to Supabase or Claude directly. Instead it sends a request to this workflow's **webhook**, a web address that starts the workflow, and the workflow sends an answer back.\n\nEach request says what it wants in a field called **action**:\n- list: show the upcoming deadlines\n- add: save a typed deadline\n- add_file: save deadlines from a photo or PDF\n- delete: remove one deadline\n\nAdding uses the same Extract & Save sub-workflow as the Telegram bot, so both give the same results.\n\nEvery answer includes the header Access-Control-Allow-Origin: *. Without it, the browser would block the answer (this rule is called CORS).\n",
+        "height": 420,
+        "width": 560
+      },
+      "id": "d2c441d0-be67-4fb1-b35d-1a699d422287",
+      "name": "Note: overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -640,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Step 1: check the request\nThe Code node checks the request is valid: a known action, text not empty, an image or PDF under 10 MB. The Switch sends it to the matching row on the right.",
+        "height": 420,
+        "width": 640,
+        "color": 2
+      },
+      "id": "21a07a5c-1b37-4db8-ace9-da500dd25fab",
+      "name": "Note: request",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -64,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## list: show upcoming deadlines\nGets them from Supabase, sorts them soonest first and sends them back.",
+        "height": 300,
+        "width": 640,
+        "color": 4
+      },
+      "id": "216d42c0-2322-4f39-95db-141449e10427",
+      "name": "Note: list",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        672,
+        -144
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## add and add_file: save deadlines\nSends the text or file to the Extract & Save sub-workflow and returns its reply. If the sub-workflow crashes, the website shows \"nothing was saved\".",
+        "height": 420,
+        "width": 640,
+        "color": 5
+      },
+      "id": "ab2031c2-1885-4b1c-928d-958d1b214763",
+      "name": "Note: add",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        672,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## delete: remove a deadline\nDeletes the deadline with the given id.",
+        "height": 292,
+        "width": 640,
+        "color": 3
+      },
+      "id": "91c77cf0-d522-4b0c-bc33-afee9c407a33",
+      "name": "Note: delete",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        672,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Anything else: invalid request\nReturns an error (code 400) explaining what was wrong.",
+        "height": 260,
+        "width": 640,
+        "color": 6
+      },
+      "id": "cdb9067b-6bf2-483b-813c-a3261cf59432",
+      "name": "Note: invalid",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        672,
+        944
+      ]
+    }
+  ],
+  "connections": {
+    "Website request": {
+      "main": [
+        [
+          {
+            "node": "Code: read request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: read request": {
+      "main": [
+        [
+          {
+            "node": "Switch: action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch: action": {
+      "main": [
+        [
+          {
+            "node": "Supabase: upcoming deadlines",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Run sub-workflow: Extract & Save",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Run sub-workflow: Extract & Save",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Supabase: delete deadline",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond: invalid request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: upcoming deadlines": {
+      "main": [
+        [
+          {
+            "node": "Code: format for website",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: format for website": {
+      "main": [
+        [
+          {
+            "node": "Respond: list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run sub-workflow: Extract & Save": {
+      "main": [
+        [
+          {
+            "node": "Respond: saved",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond: save failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: delete deadline": {
+      "main": [
+        [
+          {
+            "node": "Respond: deleted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timezone": "Europe/Paris"
+  },
+  "pinData": {}
+}

@@ -1,0 +1,901 @@
+{
+  "name": "Deadline Bot – Extract & Save Deadlines",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "c963f8f8-4073-47fb-800e-16859b1e2827",
+      "name": "When called by main workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -448,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You extract class deadlines from a message a student sent to a class bot.\nToday is {{ $now.setZone('Europe/Paris').toFormat('cccc d LLLL yyyy') }} (Europe/Paris time).\n\nRules:\n- Return every deadline mentioned (assignment, report, essay, exam, presentation, submission...). If there is none, return an empty list.\n- due_date: format YYYY-MM-DD. Resolve relative dates (\"tomorrow\", \"next Friday\", \"in two weeks\") against today. \"next <weekday>\" means the first such weekday after today.\n- Dates written like 24/10 are day/month (European format).\n- If no year is given: if a weekday is also given (e.g. \"Friday 25 September\"), use the year in which that date really is that weekday; otherwise use the year that puts the date closest to today. The date may be in the past - that is fine.\n- due_time: HH:MM in 24h format, or an empty string if no time is stated.\n- course: a SHORT course name (max 5 words, no course codes or brackets), e.g. \"Climate Risks\", \"E-business\". Empty string if unknown.\n- title: a SHORT description of what is due (max 6 words), e.g. \"Lab 2\", \"Project deliverables\", \"Final quiz\".\n- Never invent deadlines that are not in the message.\n- Answer with the JSON only, no explanation.\n\nMessage:\n{{ $json.text }}",
+        "hasOutputParser": true
+      },
+      "id": "0f9e56e3-23d1-4f41-99dd-f696e873d11b",
+      "name": "AI: extract deadlines",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        752,
+        400
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"deadlines\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"course\": { \"type\": \"string\" },\n          \"title\": { \"type\": \"string\" },\n          \"due_date\": { \"type\": \"string\", \"description\": \"YYYY-MM-DD\" },\n          \"due_time\": { \"type\": \"string\", \"description\": \"HH:MM or empty string\" }\n        },\n        \"required\": [\"course\", \"title\", \"due_date\", \"due_time\"]\n      }\n    }\n  },\n  \"required\": [\"deadlines\"]\n}"
+      },
+      "id": "9dfe0204-4ead-4e31-9370-6708c5ae2b9a",
+      "name": "Structured Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        912,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Clean and validate what the AI returned.\n// Output: one item per valid UPCOMING deadline, or a single { valid: false } item.\nconst out = $input.first().json.output || {};\nconst list = Array.isArray(out.deadlines) ? out.deadlines : [];\nconst src = $('When called by main workflow').first().json;\nconst cutoff = $now.setZone('Europe/Paris').startOf('day');   // deadlines before today are already over\n\nconst results = [];\nlet pastCount = 0;\nfor (const d of list) {\n  const title = String(d.title || '').trim();\n  const date = String(d.due_date || '').trim();\n  let time = String(d.due_time || '').trim();\n\n  if (!title) continue;                                  // nothing to save\n  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(date)) continue;        // not a real date\n  const timeGiven = /^\\d{1,2}:\\d{2}$/.test(time);\n  if (!timeGiven) time = '23:59';                        // default: end of day\n  if (time.length === 4) time = '0' + time;               // 9:00 -> 09:00\n\n  const dt = DateTime.fromISO(`${date}T${time}`, { zone: 'Europe/Paris' });\n  if (!dt.isValid) continue;\n  if (dt < cutoff) { pastCount++; continue; }            // skip deadlines that already passed\n\n  results.push({\n    json: {\n      valid: true,\n      course: String(d.course || '').trim() || 'Unknown course',\n      title,\n      due_at: dt.toISO(),\n      time_given: timeGiven,\n      source: src.file_kind || src.source || 'text',      // photo / pdf / text / web\n      added_by: src.added_by || 'unknown',\n      past_skipped: pastCount,\n    },\n  });\n}\n\nif (results.length === 0) return [{ json: { valid: false, past_skipped: pastCount } }];\nreturn results;"
+      },
+      "id": "53e88fba-3289-4e30-950f-06cf092780e1",
+      "name": "Code: normalise dates",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1072,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1000000-0000-4000-8000-000000000001",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "63dbab1c-da46-4cad-bc77-df4efaae2da0",
+      "name": "If: valid deadline?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1296,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "tableId": "deadlines",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "course",
+              "fieldValue": "={{ $json.course }}"
+            },
+            {
+              "fieldId": "title",
+              "fieldValue": "={{ $json.title }}"
+            },
+            {
+              "fieldId": "due_at",
+              "fieldValue": "={{ $json.due_at }}"
+            },
+            {
+              "fieldId": "source",
+              "fieldValue": "={{ $json.source }}"
+            },
+            {
+              "fieldId": "added_by",
+              "fieldValue": "={{ $json.added_by }}"
+            },
+            {
+              "fieldId": "conflict",
+              "fieldValue": "={{ $json.status === 'conflict' }}"
+            }
+          ]
+        }
+      },
+      "id": "2d85a7e4-14a3-4eeb-a09e-5edfaccf7d50",
+      "name": "Supabase: insert deadline",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2160,
+        224
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "supabaseApi": {
+          "id": "tZzQ41GOHDCrpASZ",
+          "name": "Supabase account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// One reply covering saved, flagged, skipped and already-over deadlines.\nconst all = $('Code: check duplicates').all().map(i => i.json);\nconst past = Math.max(0, ...$('Code: normalise dates').all().map(i => i.json.past_skipped || 0));\nconst fmt = iso => DateTime.fromISO(iso, { zone: 'Europe/Paris' }).setLocale('en').toFormat('ccc d LLL, HH:mm');\nconst line = d => `• ${d.course} – ${d.title}: ${fmt(d.due_at)}`;\n\nconst saved = all.filter(d => d.status === 'new');\nconst conflicts = all.filter(d => d.status === 'conflict');\nconst dups = all.filter(d => d.status === 'duplicate');\nconst s = n => (n > 1 ? 's' : '');\n\nconst parts = [];\nif (saved.length) parts.push(`✅ Saved ${saved.length} deadline${s(saved.length)}:\\n` + saved.map(line).join('\\n'));\nif (conflicts.length) parts.push(`⚠️ Saved with a conflict flag – another date was already saved, check with the teacher:\\n` +\n  conflicts.map(d => `${line(d)}\\n   (already saved: ${fmt(d.previous_due_at)})`).join('\\n'));\nif (dups.length) parts.push(`📌 This deadline is already recorded:\\n` + dups.map(line).join('\\n'));\nif (past) parts.push(`📅 Skipped ${past} deadline${s(past)} that ${past > 1 ? 'are' : 'is'} already over.`);\n\nconst reply = parts.join('\\n\\n') + '\\n\\nSend /deadlines to see the full list.';\nreturn [{ json: { reply, saved: saved.length + conflicts.length, skipped: dups.length } }];"
+      },
+      "id": "a9d4f8ec-43c8-44da-a517-c7dddee3a7ec",
+      "name": "Code: build summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2640,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "s1000000-0000-4000-8000-000000000001",
+              "name": "reply",
+              "value": "={{ $json.past_skipped > 0 ? '📅 I found ' + $json.past_skipped + ' deadline' + ($json.past_skipped > 1 ? 's' : '') + ' in that message, but ' + ($json.past_skipped > 1 ? 'they are' : 'it is') + ' already over – nothing to save.' : '🤷 I couldn\\'t find a deadline in that message.\\nTry something like: \"Data Viz report due 24/10 at 23:59\"' }}",
+              "type": "string"
+            },
+            {
+              "id": "s1000000-0000-4000-8000-000000000002",
+              "name": "saved",
+              "value": 0,
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6d109783-ad21-4f69-94c8-cfadb5489807",
+      "name": "Set: no deadline found",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2420,
+        860
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c2000000-0000-4000-8000-000000000001",
+              "leftValue": "={{ $json.text }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "0ba8635a-a279-4536-a4a2-d6e00ffc7855",
+      "name": "If: has text?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        528,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "deadlines",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "due_at",
+              "condition": "gte",
+              "keyValue": "={{ $now.minus({ days: 1 }).toISO() }}"
+            }
+          ]
+        }
+      },
+      "id": "cf00c830-ae81-4efb-983e-c5c49420bbdb",
+      "name": "Supabase: existing deadlines",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1504,
+        304
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "supabaseApi": {
+          "id": "tZzQ41GOHDCrpASZ",
+          "name": "Supabase account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Compare each new deadline with what is already saved.\n// status = new | duplicate (same deadline + same day) | conflict (same deadline, different day)\nconst incoming = $('Code: normalise dates').all().map(i => i.json);\nconst existing = $input.all().map(i => i.json).filter(r => r && r.id);\n\n// Loose matching so \"Final quiz (exam)\" = \"Final quiz\" and \"e-business\" = \"E business\"\nconst key = s => String(s || '').toLowerCase().replace(/\\([^)]*\\)/g, ' ').normalize('NFD')\n  .replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '');\nconst sameTitle = (a, b) => { const x = key(a), y = key(b); return !!x && !!y && (x === y || x.includes(y) || y.includes(x)); };\nconst unknown = c => key(c) === 'unknowncourse' || key(c) === '';\nconst sameCourse = (a, b) => unknown(a) || unknown(b) || key(a) === key(b);\nconst day = iso => DateTime.fromISO(iso, { zone: 'Europe/Paris' }).toISODate();\n\nconst seen = [];   // also catches the same deadline twice in one message\nconst out = [];\nfor (const d of incoming) {\n  const matches = existing.concat(seen).filter(r => sameTitle(r.title, d.title) && sameCourse(r.course, d.course));\n  let status = 'new';\n  let previous_due_at = null;\n  if (matches.some(r => day(r.due_at) === day(d.due_at))) status = 'duplicate';\n  else if (matches.length) { status = 'conflict'; previous_due_at = matches[0].due_at; }\n  out.push({ json: { ...d, status, previous_due_at } });\n  seen.push(d);\n}\nreturn out;"
+      },
+      "id": "372d936e-a8fb-45e3-8a14-f64b2417516a",
+      "name": "Code: check duplicates",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1728,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "c3000000-0000-4000-8000-000000000001",
+                    "leftValue": "={{ $json.status }}",
+                    "rightValue": "new",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "new"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "c3000000-0000-4000-8000-000000000002",
+                    "leftValue": "={{ $json.status }}",
+                    "rightValue": "conflict",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "different date"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "c3000000-0000-4000-8000-000000000003",
+                    "leftValue": "={{ $json.status }}",
+                    "rightValue": "duplicate",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "duplicate"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8de8f714-a654-4e72-9b8b-c164fc9c69f8",
+      "name": "Switch: new / duplicate / different date",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1952,
+        288
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "f34c7026-bd88-40a0-af3a-5798013ebe2c",
+      "name": "Merge results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        2420,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "claude-haiku-5-5",
+          "mode": "list",
+          "cachedResultName": "Claude Haiku 5.5"
+        },
+        "options": {
+          "maxTokensToSample": 4096,
+          "thinkingMode": "disabled"
+        }
+      },
+      "id": "b1678f9e-44a7-4b6a-9643-114fd5ce18b9",
+      "name": "Claude (Anthropic)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.6,
+      "position": [
+        704,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "f1000000-0000-4000-8000-000000000001",
+                    "leftValue": "={{ $json.file_kind === 'pdf' && !!($binary && $binary.data) }}",
+                    "operator": {
+                      "operation": "true",
+                      "singleValue": true,
+                      "type": "boolean"
+                    },
+                    "rightValue": ""
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                }
+              },
+              "renameOutput": true,
+              "outputKey": "PDF"
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "f1000000-0000-4000-8000-000000000002",
+                    "leftValue": "={{ $json.file_kind === 'photo' && !!($binary && $binary.data) }}",
+                    "operator": {
+                      "operation": "true",
+                      "singleValue": true,
+                      "type": "boolean"
+                    },
+                    "rightValue": ""
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                }
+              },
+              "renameOutput": true,
+              "outputKey": "photo"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "text"
+        }
+      },
+      "id": "6d42e46a-ef96-40ff-a4ce-f39fed1d788e",
+      "name": "Switch: text / photo / PDF",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -224,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "document",
+        "modelId": {
+          "__rl": true,
+          "cachedResultName": "claude-haiku-5-5",
+          "mode": "list",
+          "value": "claude-haiku-5-5"
+        },
+        "text": "A student sent this document to a class deadline bot. Write out, as plain text, every piece of information about deadlines you can see: course names, what is due (assignment, report, exam, presentation, quiz...), dates and times. Keep dates exactly as written. One deadline per line. Do not invent anything. If there is nothing about deadlines, reply with exactly: NONE",
+        "inputType": "binary",
+        "options": {
+          "maxTokens": 3000
+        }
+      },
+      "id": "61969d6d-11f5-494e-a32f-6b249c59518a",
+      "name": "Claude: read PDF",
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        0,
+        32
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "modelId": {
+          "__rl": true,
+          "cachedResultName": "claude-haiku-5-5",
+          "mode": "list",
+          "value": "claude-haiku-5-5"
+        },
+        "text": "A student sent this image to a class deadline bot. Write out, as plain text, every piece of information about deadlines you can see: course names, what is due (assignment, report, exam, presentation, quiz...), dates and times. Keep dates exactly as written. One deadline per line. Do not invent anything. If there is nothing about deadlines, reply with exactly: NONE",
+        "inputType": "binary",
+        "options": {
+          "maxTokens": 3000
+        }
+      },
+      "id": "e12105f2-252c-48c6-8adf-95e149514c8d",
+      "name": "Claude: read image",
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        0,
+        208
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combine the caption with what Claude read in the file, then continue like a typed message.\nconst p = $('When called by main workflow').first().json;\nconst r = $input.first().json || {};\n\n// Pull the text out of the AI answer, whatever shape it comes in.\nfunction textOf(x) {\n  if (x == null) return '';\n  if (typeof x === 'string') return x;\n  if (Array.isArray(x)) return x.map(textOf).join('\\n');\n  if (typeof x === 'object') {\n    for (const k of ['text', 'content', 'output', 'message', 'response']) {\n      if (x[k] != null) return textOf(x[k]);\n    }\n  }\n  return '';\n}\nconst read = textOf(r).trim();\nconst caption = String(p.text || p.caption || '').trim();\nconst text = [caption, read === 'NONE' ? '' : read].filter(Boolean).join('\\n');\nreturn [{ json: { text, added_by: p.added_by, source: p.file_kind } }];"
+      },
+      "id": "9ddb3d79-cc96-468c-8ece-2c64a6b4e7af",
+      "name": "Code: file to text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        272,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f2000000-0000-4000-8000-000000000001",
+              "name": "reply",
+              "type": "string",
+              "value": "⚠️ Sorry, I couldn't read that file – the AI service is busy or the file is too long. Please try again in a minute, or type the deadline instead."
+            },
+            {
+              "id": "f2000000-0000-4000-8000-000000000002",
+              "name": "saved",
+              "type": "number",
+              "value": 0
+            },
+            {
+              "id": "f2000000-0000-4000-8000-000000000003",
+              "name": "read_failed",
+              "type": "boolean",
+              "value": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2495b6ee-2dd1-487e-8ca2-dd13a53c5089",
+      "name": "Set: couldn't read file",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        272,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "content": "# Extract & Save Deadlines (sub-workflow)\nA sub-workflow is a workflow that other workflows call, like a shared function. Both the Telegram bot (Main) and the website (Web API) use this one, so the reading and saving logic exists only once.\n\n**It receives:** a typed message, or a photo or PDF with an optional caption, plus the sender's name.\n**It returns:** one reply message to show the person.\n\n## Step by step\n**Step 1** – Check what arrived: a PDF, a photo or text.\n**Step 2** – Photos and PDFs: Claude reads the file and writes out the deadlines as text.\n**Step 3** – Claude (AI) turns the text into a clean list: course, title, date and time.\n**Step 4** – A Code node checks the dates, uses 23:59 when no time is given, and drops deadlines that are already over.\n**Step 5** – Compare with the deadlines already saved, then save the new ones.\n**Step 6** – Write one reply that sums everything up.\n\n## Project requirements in this workflow\nSub-workflow, AI nodes, Code, If, Switch, Set, Merge, database (Supabase), retries and an error output.",
+        "height": 564,
+        "width": 580
+      },
+      "id": "d444ca4c-4d6a-4693-8c2a-0dfe319fb9b1",
+      "name": "Note: overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1136,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Step 1: what did we receive?\nPDFs and photos go to Claude first.\nTyped text goes straight to step 3.",
+        "height": 440,
+        "width": 400,
+        "color": 3
+      },
+      "id": "e65bf8eb-dc54-4b65-a9d6-4007cda2f47b",
+      "name": "Note: input",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -496,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Step 2: read the photo or PDF\nClaude writes out every deadline it can see, then it is joined with the caption.\nIf Claude fails (busy, or the file is too long), the person gets \"I couldn't read that file\". It tries 2 times.",
+        "height": 540,
+        "width": 480,
+        "color": 5
+      },
+      "id": "c41acc8d-5fa6-4527-b369-c121fb0c027d",
+      "name": "Note: read file",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -64,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Steps 3 and 4: understand the deadlines\nClaude and the Structured Output Parser turn the text into a list of course, title, date and time. The Code node checks each date, uses 23:59 if no time was given and skips past deadlines. It tries 3 times.",
+        "height": 580,
+        "width": 720,
+        "color": 6
+      },
+      "id": "8517ea02-9dfb-4973-a3f9-ee8e3ba254bf",
+      "name": "Note: AI extraction",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        480,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Step 5: check for duplicates and save\nCompares each deadline with the ones already in Supabase.\n**New:** saved. **Same deadline, different date:** saved with a conflict warning. **Already saved:** skipped.",
+        "height": 520,
+        "width": 1060,
+        "color": 4
+      },
+      "id": "1f09a069-fa38-4c7e-958f-96c34371eea4",
+      "name": "Note: save",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1248,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Step 6: reply\n**Top row: at least one real deadline was found**\nMerge results waits for both groups from step 5 (the ones saved and the ones skipped as already saved), so the summary is written only once.\nCode: build summary then writes one message with up to four parts:\n- **Saved:** new deadlines\n- **Saved with a conflict warning:** same deadline, but a different date was already saved\n- **Already recorded:** exact duplicates, not saved again\n- **Skipped, already over:** deadlines in the past\n\n**Bottom row: nothing could be saved**\nSet: no deadline found gives one of two replies:\n- the message only had past deadlines: \"they are already over, nothing to save\"\n- no deadline at all: \"I couldn't find a deadline\" plus an example to copy",
+        "height": 820,
+        "width": 620,
+        "color": 2
+      },
+      "id": "5c5900ec-acbd-43ee-b7bd-c0abe23109b0",
+      "name": "Note: reply",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2368,
+        208
+      ]
+    }
+  ],
+  "connections": {
+    "If: has text?": {
+      "main": [
+        [
+          {
+            "node": "AI: extract deadlines",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set: no deadline found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI: extract deadlines",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: extract deadlines": {
+      "main": [
+        [
+          {
+            "node": "Code: normalise dates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: normalise dates": {
+      "main": [
+        [
+          {
+            "node": "If: valid deadline?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If: valid deadline?": {
+      "main": [
+        [
+          {
+            "node": "Supabase: existing deadlines",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set: no deadline found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: existing deadlines": {
+      "main": [
+        [
+          {
+            "node": "Code: check duplicates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: check duplicates": {
+      "main": [
+        [
+          {
+            "node": "Switch: new / duplicate / different date",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch: new / duplicate / different date": {
+      "main": [
+        [
+          {
+            "node": "Supabase: insert deadline",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Supabase: insert deadline",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Supabase: insert deadline": {
+      "main": [
+        [
+          {
+            "node": "Merge results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge results": {
+      "main": [
+        [
+          {
+            "node": "Code: build summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude (Anthropic)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI: extract deadlines",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When called by main workflow": {
+      "main": [
+        [
+          {
+            "node": "Switch: text / photo / PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch: text / photo / PDF": {
+      "main": [
+        [
+          {
+            "node": "Claude: read PDF",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Claude: read image",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If: has text?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude: read PDF": {
+      "main": [
+        [
+          {
+            "node": "Code: file to text",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set: couldn't read file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude: read image": {
+      "main": [
+        [
+          {
+            "node": "Code: file to text",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set: couldn't read file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: file to text": {
+      "main": [
+        [
+          {
+            "node": "If: has text?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "pinData": {}
+}
