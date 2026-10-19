@@ -5,7 +5,7 @@ A shared deadline planner for our class. Students add deadlines in plain words, 
 It works in two places:
 
 - **Telegram bot:** [@Charlotte_deadline_bot](https://t.me/Charlotte_deadline_bot)
-- **Website:** this repository, hosted on Vercel
+- **Website:** this repository, hosted on Vercel, [deadline-helper-theta.vercel.app](https://deadline-helper-theta.vercel.app)
 
 Both use the same database, so a deadline added on one appears on the other.
 
