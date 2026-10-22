@@ -24,7 +24,6 @@ Built with n8n for the No-Code Software Development course.
 
 ## How the pieces fit together
 
-![Overview of the five workflows](docs/diagrams/overview.png)
 
 ```
 Telegram  ──►  Main workflow  ──┐
@@ -47,7 +46,6 @@ The workflow files are in the `n8n/` folder. Each workflow also has notes on its
 
 ### 1. Main (the Telegram bot)
 
-![Main workflow diagram](docs/diagrams/main.png)
 
 
 Every message or button tap sent to the bot starts this workflow.
@@ -66,7 +64,6 @@ When someone taps a button, a small side branch ("If: button tap?") also tells T
 
 ### 2. Extract & Save Deadlines (sub-workflow)
 
-![Extract & Save diagram](docs/diagrams/extract-and-save.png)
 
 
 A sub-workflow is a workflow that other workflows call, like a shared function. Both the bot and the website use this one, so the logic exists only once.
@@ -115,7 +112,6 @@ Anything else gets an error message back.
 
 ### 5. Error Handler
 
-![Error handling diagram](docs/diagrams/error-handler.png)
 
 
 The other four workflows are linked to this one in their settings (Settings, then Error workflow). If one of them crashes, n8n runs it automatically and sends me a Telegram message with the workflow, the node and the error.
@@ -184,7 +180,7 @@ Then check the **Executions** tab in n8n: recent runs should be green.
 | `vercel.json` | Vercel setting for clean URLs |
 | `n8n/*.json` | the five n8n workflows |
 | `supabase/schema.sql` | the database tables |
-| `docs/` | workflow diagrams and screenshots |
+| `docs/screenshots/` | screenshots of the workflows in n8n |
 | `.env.example` | the keys and settings you need (copy to `.env`, never commit it) |
 | `.gitignore` | keeps `.env` and local n8n data out of Git |
 
