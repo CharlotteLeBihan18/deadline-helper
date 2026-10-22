@@ -1,0 +1,14 @@
+# Secrets: never commit real keys
+.env
+.env.*
+!.env.example
+
+# Local n8n / Docker data (contains credentials)
+n8n_data/
+.n8n/
+*.sqlite
+
+# Tools and OS files
+node_modules/
+.vercel/
+.DS_Store
