@@ -1,5 +1,7 @@
 {
+  "id": "WzMlgR3N4SHLuA6V",
   "name": "Deadline Bot – Reminders",
+  "active": false,
   "nodes": [
     {
       "parameters": {
@@ -303,7 +305,8 @@
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate",
-    "timezone": "Europe/Paris"
+    "timezone": "Europe/Paris",
+    "errorWorkflow": "KMCMjVYUyHYIo7ad"
   },
   "pinData": {}
 }

@@ -1,5 +1,7 @@
 {
+  "id": "wixuXP60JLlh9AXW",
   "name": "Deadline Bot – Web API",
+  "active": false,
   "nodes": [
     {
       "parameters": {
@@ -579,7 +581,8 @@
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate",
-    "timezone": "Europe/Paris"
+    "timezone": "Europe/Paris",
+    "errorWorkflow": "KMCMjVYUyHYIo7ad"
   },
   "pinData": {}
 }
