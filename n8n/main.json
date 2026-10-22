@@ -326,6 +326,9 @@
         272
       ],
       "webhookId": "b1000000-0000-4000-8000-0000000000bb",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
       "credentials": {
         "telegramApi": {
           "id": "nvAMUVjG7Grqgm4L",
@@ -401,6 +404,9 @@
         736
       ],
       "webhookId": "b1000000-0000-4000-8000-0000000000cc",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
       "credentials": {
         "telegramApi": {
           "id": "nvAMUVjG7Grqgm4L",
@@ -426,6 +432,9 @@
         2672
       ],
       "webhookId": "b1000000-0000-4000-8000-0000000000dd",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
       "credentials": {
         "telegramApi": {
           "id": "nvAMUVjG7Grqgm4L",
@@ -473,7 +482,7 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "loose",
+            "typeValidation": "strict",
             "version": 2
           },
           "conditions": [
@@ -543,8 +552,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1440,
-        1472
+        1392,
+        1456
       ]
     },
     {
@@ -588,6 +597,9 @@
         1472
       ],
       "webhookId": "b1000000-0000-4000-8000-0000000000ee",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
       "credentials": {
         "telegramApi": {
           "id": "nvAMUVjG7Grqgm4L",
@@ -613,6 +625,9 @@
         624
       ],
       "webhookId": "b3000000-0000-4000-8000-0000000000a1",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
       "credentials": {
         "telegramApi": {
           "id": "nvAMUVjG7Grqgm4L",
@@ -776,10 +791,13 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1440,
-        1264
+        1552,
+        1248
       ],
       "webhookId": "b4000000-0000-4000-8000-0000000000b2",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
       "credentials": {
         "telegramApi": {
           "id": "nvAMUVjG7Grqgm4L",
@@ -836,6 +854,9 @@
         -80
       ],
       "webhookId": "b4000000-0000-4000-8000-0000000000b4",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
       "credentials": {
         "telegramApi": {
           "id": "nvAMUVjG7Grqgm4L",
@@ -868,6 +889,9 @@
       "id": "8212cdfd-ddb3-4941-922a-2277edb577e8",
       "name": "Supabase: subscribe",
       "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
       "credentials": {
         "supabaseApi": {
           "id": "tZzQ41GOHDCrpASZ",
@@ -892,6 +916,9 @@
         928
       ],
       "webhookId": "69ecfd61-d60d-4ff3-8b6f-b9fe0675a766",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
       "credentials": {
         "telegramApi": {
           "id": "nvAMUVjG7Grqgm4L",
@@ -925,6 +952,9 @@
       ],
       "alwaysOutputData": true,
       "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
       "credentials": {
         "supabaseApi": {
           "id": "tZzQ41GOHDCrpASZ",
@@ -1062,6 +1092,9 @@
         2000
       ],
       "webhookId": "4ff89c52-02e3-4519-b862-0d09fe88966e",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
       "credentials": {
         "telegramApi": {
           "id": "nvAMUVjG7Grqgm4L",
@@ -1122,6 +1155,9 @@
         2192
       ],
       "webhookId": "77dd86e6-23cf-42ea-a048-9af9fe9a2c55",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
       "credentials": {
         "telegramApi": {
           "id": "nvAMUVjG7Grqgm4L",
@@ -1332,6 +1368,9 @@
         2272
       ],
       "webhookId": "8910e8b7-6895-4a94-bca5-dcbc595c68bf",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
       "credentials": {
         "telegramApi": {
           "id": "nvAMUVjG7Grqgm4L",
@@ -1434,6 +1473,9 @@
         2272
       ],
       "webhookId": "be23c6fb-3a13-4a73-81a0-e5b45283b397",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
       "credentials": {
         "telegramApi": {
           "id": "nvAMUVjG7Grqgm4L",

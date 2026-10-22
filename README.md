@@ -126,7 +126,7 @@ The other four workflows are linked to this one in their settings (Settings, the
 
 There are three layers:
 
-1. **Retry On Fail.** Supabase and Claude nodes, and some Telegram nodes, try again (2 or 3 times) before giving up.
+1. **Retry On Fail.** Every node that calls an outside service (Supabase, Claude, Telegram) tries again before giving up: 3 tries, 2 seconds apart (Claude file reading: 2 tries, 3 seconds apart).
 2. **Error outputs.** Where a failure is expected, for example Claude being busy, the workflow follows an "Error" path and the person gets a clear message instead of silence.
 3. **Error Handler workflow.** Anything not caught by the first two sends me an alert.
 

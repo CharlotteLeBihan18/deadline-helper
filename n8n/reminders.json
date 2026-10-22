@@ -118,6 +118,9 @@
       ],
       "webhookId": "c1000000-0000-4000-8000-0000000000c6",
       "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
       "credentials": {
         "telegramApi": {
           "id": "nvAMUVjG7Grqgm4L",
