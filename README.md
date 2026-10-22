@@ -46,6 +46,8 @@ The workflow files are in the `n8n/` folder. Each workflow also has notes on its
 
 ### 1. Main (the Telegram bot)
 
+![Main workflow in n8n](docs/screenshots/main.png)
+
 
 
 Every message or button tap sent to the bot starts this workflow.
@@ -63,6 +65,8 @@ Every message or button tap sent to the bot starts this workflow.
 When someone taps a button, a small side branch ("If: button tap?") also tells Telegram the tap was received, so the button does not keep loading.
 
 ### 2. Extract & Save Deadlines (sub-workflow)
+
+![Extract & Save workflow in n8n](docs/screenshots/extract-and-save.png)
 
 
 
@@ -111,6 +115,8 @@ The website cannot talk to Supabase or Claude directly, so it sends requests to 
 Anything else gets an error message back.
 
 ### 5. Error Handler
+
+![Error Handler workflow in n8n](docs/screenshots/error-handler.png)
 
 
 
