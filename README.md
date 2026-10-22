@@ -184,11 +184,58 @@ Then check the **Executions** tab in n8n: recent runs should be green.
 |---|---|
 | `index.html` | the website (one page, no build step) |
 | `vercel.json` | Vercel setting for clean URLs |
+| `docker-compose.yml` | self-hosted n8n + Postgres (see Run it with Docker) |
 | `n8n/*.json` | the five n8n workflows |
 | `supabase/schema.sql` | the database tables |
 | `docs/screenshots/` | screenshots of the workflows in n8n |
 | `.env.example` | the keys and settings you need (copy to `.env`, never commit it) |
 | `.gitignore` | keeps `.env` and local n8n data out of Git |
+
+## Run it with Docker (self-hosted)
+
+`docker-compose.yml` runs n8n with its own Postgres database on your computer. The five workflows in `n8n/` are imported automatically the first time.
+
+| Service | Image | What it does |
+|---|---|---|
+| `postgres` | `postgres:16.4-alpine` | n8n's database (workflows, credentials, executions). Has a healthcheck, so n8n only starts once it is ready. |
+| `n8n-import` | `n8nio/n8n:2.44.5` | runs once, imports the workflows on the first start, then stops |
+| `n8n` | `n8nio/n8n:2.44.5` | the n8n editor and the bot, on http://localhost:5678 |
+
+Versions are pinned (no `:latest`), so the same setup starts the same way every time. Data is kept in two named volumes, `db_data` and `n8n_data`, so nothing is lost when the containers stop.
+
+### Start it
+
+1. Install and open **Docker Desktop**.
+2. Clone this repository and open a terminal in it.
+3. Create your `.env` from the example, and put a real random key in it:
+   ```bash
+   cp .env.example .env
+   openssl rand -hex 32   # paste the result as N8N_ENCRYPTION_KEY in .env
+   ```
+   Also change `POSTGRES_PASSWORD`. `.env` is ignored by Git, so it is never committed.
+4. Start everything:
+   ```bash
+   docker compose up -d
+   ```
+5. Check that it is running: `docker compose ps` should show `postgres` and `n8n` as **healthy**.
+6. Open http://localhost:5678, create your account, and the five workflows are there.
+
+### Check that data survives a restart
+
+```bash
+docker compose down
+docker compose up -d
+```
+
+Your account, workflows and credentials are still there, because they live in the volumes. Only `docker compose down -v` deletes the volumes.
+
+### Make the bot work from Docker
+
+The workflows are imported without keys. To run the bot from this n8n:
+
+1. Add the three credentials in n8n (Telegram, Supabase, Anthropic); see the keys table above. Then open each Telegram, Supabase and Claude node and pick the credential.
+2. Telegram and the website need a public https address. Use a tunnel such as ngrok, set `WEBHOOK_URL` in `.env` to that address, and run `docker compose up -d` again.
+3. Publish the workflows. In `index.html`, point `API` to the new webhook address.
 
 ## Running it yourself
 
