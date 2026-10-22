@@ -46,7 +46,7 @@ The workflow files are in the `n8n/` folder. Each workflow also has notes on its
 
 ### 1. Main (the Telegram bot)
 
-![Main workflow in n8n](docs/screenshots/main.png)
+![Main workflow in n8n](docs/screenshots/main-workflow.png)
 
 
 
