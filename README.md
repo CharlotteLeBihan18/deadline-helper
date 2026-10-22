@@ -11,6 +11,8 @@ Both use the same database, so a deadline added on one appears on the other.
 
 Built with n8n for the No-Code Software Development course.
 
+The project proposal, with architecture diagrams that match the built workflows and the level and cut line, is in [`docs/proposal.pdf`](docs/proposal.pdf).
+
 ## What it can do
 
 - Save a deadline written in plain words, for example "Data Viz report due 24/10 at 23:59"
@@ -188,6 +190,7 @@ Then check the **Executions** tab in n8n: recent runs should be green.
 | `n8n/*.json` | the five n8n workflows |
 | `supabase/schema.sql` | the database tables |
 | `docs/screenshots/` | screenshots of the workflows in n8n |
+| `docs/proposal.pdf` | project proposal: need, triggers, architecture diagrams, level and cut line |
 | `.env.example` | the keys and settings you need (copy to `.env`, never commit it) |
 | `.gitignore` | keeps `.env` and local n8n data out of Git |
 
